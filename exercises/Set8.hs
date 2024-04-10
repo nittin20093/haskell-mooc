@@ -344,7 +344,12 @@ stripes a b = Picture f
 --       ["000000","000000","000000","000000","000000"]]
 
 paint :: Picture -> Shape -> Picture -> Picture
-paint pat shape base = todo
+paint pat shape base = Picture (\coord -> if contains shape (getX coord) (getY coord) then getPatternColor pat coord else getBaseColor base coord)
+  where
+    getBaseColor (Picture f) coord = f coord
+    getPatternColor (Picture f) coord = f coord
+    getX (Coord x _) = x
+    getY (Coord _ y) = y
 ------------------------------------------------------------------------------
 
 -- Here's a patterned version of the snowman example. See it by running:
@@ -407,21 +412,27 @@ xy = Picture f
 data Fill = Fill Color
 
 instance Transform Fill where
-  apply = todo
+  apply (Fill color) _ = solid color
 
 data Zoom = Zoom Int
   deriving Show
 
 instance Transform Zoom where
-  apply = todo
+  apply (Zoom z) (Picture p) = Picture (p . zoomCoord z)
 
 data Flip = FlipX | FlipY | FlipXY
   deriving Show
 
+flipCoordX :: Coord -> Coord
+flipCoordX (Coord x y) = Coord (-x) y
+
+flipCoordY :: Coord -> Coord
+flipCoordY (Coord x y) = Coord x (-y)
+
 instance Transform Flip where
-  apply = todo
-
-
+  apply FlipX (Picture p) = Picture (p . flipCoordX)
+  apply FlipY (Picture p) = Picture (p . flipCoordY)
+  apply FlipXY (Picture p) = Picture (p . flipCoordXY)
 
 
 ------------------------------------------------------------------------------
@@ -438,8 +449,8 @@ instance Transform Flip where
 data Chain a b = Chain a b
   deriving Show
 
-instance Transform (Chain a b) where
-  apply = todo
+instance (Transform a, Transform b) => Transform (Chain a b) where
+  apply (Chain t1 t2) = apply t1 . apply t2
 
 ------------------------------------------------------------------------------
 

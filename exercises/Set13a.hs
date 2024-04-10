@@ -47,19 +47,22 @@ readNames s =
 -- (NB! There are obviously other corner cases like the inputs " " and
 -- "a b c", but you don't need to worry about those here)
 split :: String -> Maybe (String,String)
-split = todo
+split [] = Nothing
+split (x:xs) = if x == ' '  then Just ("", xs) else case split xs of
+  Just (forename, surname) -> Just (x:forename, surname)
+  Nothing -> Nothing
 
 -- checkNumber should take a pair of two strings and return them
 -- unchanged if they don't contain numbers. Otherwise Nothing is
 -- returned.
 checkNumber :: (String, String) -> Maybe (String, String)
-checkNumber = todo
+checkNumber (forename, surname) = if (any isDigit forename || any isDigit surname) then Nothing else Just (forename, surname)
 
 -- checkCapitals should take a pair of two strings and return them
 -- unchanged if both start with a capital letter. Otherwise Nothing is
 -- returned.
 checkCapitals :: (String, String) -> Maybe (String, String)
-checkCapitals (for,sur) = todo
+checkCapitals (x:for,y:sur) = if isUpper x && isUpper y then Just (x:for,y:sur) else Nothing
 
 ------------------------------------------------------------------------------
 -- Ex 2: Given a list of players and their scores (as [(String,Int)]),
@@ -86,7 +89,10 @@ checkCapitals (for,sur) = todo
 --     ==> Just "a"
 
 winner :: [(String,Int)] -> String -> String -> Maybe String
-winner scores player1 player2 = todo
+winner scores player1 player2 = do
+    score1 <- lookup player1 scores
+    score2 <- lookup player2 scores
+    if score1 >= score2 then Just player1 else Just player2
 
 ------------------------------------------------------------------------------
 -- Ex 3: given a list of indices and a list of values, return the sum
@@ -102,9 +108,13 @@ winner scores player1 player2 = todo
 --    Just 19
 --  selectSum [0..10] [4,6,9,20]
 --    Nothing
+safeIndex :: [a] -> Int -> Maybe a
+safeIndex [] _ = Nothing
+safeIndex (x:_) 0 = Just x
+safeIndex (_:xs) i = if i < 0 then Nothing else safeIndex xs (i - 1)
 
 selectSum :: Num a => [a] -> [Int] -> Maybe a
-selectSum xs is = todo
+selectSum xs is = sum <$> traverse (\i -> safeIndex xs i) is
 
 ------------------------------------------------------------------------------
 -- Ex 4: Here is the Logger monad from the course material. Implement
@@ -138,7 +148,10 @@ instance Applicative Logger where
   (<*>) = ap
 
 countAndLog :: Show a => (a -> Bool) -> [a] -> Logger Int
-countAndLog = todo
+countAndLog p xs = do
+    let filtered_msgs = filter p xs
+    mapM_ (msg . show) filtered_msgs
+    return (length filtered_msgs)
 
 ------------------------------------------------------------------------------
 -- Ex 5: You can find the Bank and BankOp code from the course
@@ -155,7 +168,8 @@ exampleBank :: Bank
 exampleBank = (Bank (Map.fromList [("harry",10),("cedric",7),("ginny",1)]))
 
 balance :: String -> BankOp Int
-balance accountName = todo
+balance accountName = BankOp findBalance 
+  where findBalance (Bank acc) = (Map.findWithDefault 0 accountName acc, Bank acc)
 
 ------------------------------------------------------------------------------
 -- Ex 6: Using the operations balance, withdrawOp and depositOp, and
@@ -173,7 +187,7 @@ balance accountName = todo
 --     ==> ((),Bank (fromList [("cedric",7),("ginny",1),("harry",10)]))
 
 rob :: String -> String -> BankOp ()
-rob from to = todo
+rob from to = balance from +> withdrawOp from +> depositOp to
 
 ------------------------------------------------------------------------------
 -- Ex 7: using the State monad, write the operation `update` that first
@@ -185,7 +199,7 @@ rob from to = todo
 --    ==> ((),7)
 
 update :: State Int ()
-update = todo
+update = modify (\x -> (2 * x) + 1)
 
 ------------------------------------------------------------------------------
 -- Ex 8: Checking that parentheses are balanced with the State monad.
@@ -213,7 +227,12 @@ update = todo
 --   parensMatch "(()))("      ==> False
 
 paren :: Char -> State Int ()
-paren = todo
+paren c = do
+  state <- get
+  if c == '(' && state /= (-1) then modify (+1)
+  else if c == ')' && state /= (-1) then modify (subtract 1)
+  else return ()
+
 
 parensMatch :: String -> Bool
 parensMatch s = count == 0
