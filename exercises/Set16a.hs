@@ -18,7 +18,7 @@ import Data.List
 --  +++ OK, passed 1 test.
 
 isSorted :: (Show a, Ord a) => [a] -> Property
-isSorted = todo
+isSorted xs = sort xs === xs
 
 ------------------------------------------------------------------------------
 -- Ex 2: In this and the following exercises, we'll build a suite of
@@ -50,7 +50,8 @@ isSorted = todo
 --  +++ OK, passed 1 test.
 
 sumIsLength :: Show a => [a] -> [(a,Int)] -> Property
-sumIsLength input output = todo
+sumIsLength input output = 
+  let l1 = length input; l2 = sum (map snd output) in property $ l1 == l2
 
 -- This is a function that passes the sumIsLength test but is wrong
 freq1 :: Eq a => [a] -> [(a,Int)]
@@ -79,7 +80,10 @@ freq1 (x:y:xs) = [(x,1),(y,length xs + 1)]
 --  +++ OK, passed 100 tests.
 
 inputInOutput :: (Show a, Eq a) => [a] -> [(a,Int)] -> Property
-inputInOutput input output = todo
+inputInOutput input output = forAll (elements input) $ \x -> counterexample ("Element: " ++ show x) $
+  case lookup x output of
+    Just count -> count >= 0
+    Nothing -> False
 
 -- This function passes both the sumIsLength and inputInOutput tests
 freq2 :: Eq a => [a] -> [(a,Int)]
@@ -110,7 +114,7 @@ freq2 xs = map (\x -> (x,1)) xs
 --  +++ OK, passed 100 tests.
 
 outputInInput :: (Show a, Eq a) => [a] -> [(a,Int)] -> Property
-outputInInput input output = todo
+outputInInput input output = forAll (elements output) $ \(x, n) -> let actualCount = length (filter (== x) input) in counterexample (show (x, n)) $ actualCount == n
 
 -- This function passes the outputInInput test but not the others
 freq3 :: Eq a => [a] -> [(a,Int)]
@@ -170,7 +174,10 @@ frequencies (x:ys) = (x, length xs) : frequencies others
 --  [2,4,10]
 
 genList :: Gen [Int]
-genList = todo
+genList = do
+  len <- choose (3, 5)
+  elements <- vectorOf len (choose (0, 10))
+  return (sort elements)
 
 ------------------------------------------------------------------------------
 -- Ex 7: Here are the datatypes Arg and Expression from Set 15. Write
@@ -208,7 +215,11 @@ data Expression = Plus Arg Arg | Minus Arg Arg
   deriving (Show, Eq)
 
 instance Arbitrary Arg where
-  arbitrary = todo
+  arbitrary = oneof [genNumber, genVariable] where
+    genNumber = Number <$> choose (0, 10)
+    genVariable = Variable <$> elements "abcxyz"
 
 instance Arbitrary Expression where
-  arbitrary = todo
+  arbitrary = oneof [genPlus, genMinus] where
+    genPlus = Plus <$> arbitrary <*> arbitrary
+    genMinus = Minus <$> arbitrary <*> arbitrary

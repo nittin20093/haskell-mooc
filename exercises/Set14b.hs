@@ -115,7 +115,10 @@ balanceQuery :: Query
 balanceQuery = Query (T.pack "SELECT amount FROM events WHERE account = ?;")
 
 balance :: Connection -> T.Text -> IO Int
-balance = todo
+balance db account = do
+    amounts <- query db balanceQuery [account] :: IO [[Int]]
+    let amounts_summed = map sum amounts
+    return (sum amounts_summed)
 
 ------------------------------------------------------------------------------
 -- Ex 3: Now that we have the database part covered, let's think about
@@ -155,6 +158,16 @@ parseInt = readMaybe . T.unpack
 
 parseCommand :: [T.Text] -> Maybe Command
 parseCommand = todo
+-- parseCommand (cmd:rest) =
+--     case cmd of
+--         "balance" -> Just $ Balance (head rest)
+--         "deposit" -> case rest of
+--                         [account, amount] -> case parseInt amount of
+--                                                 Just n -> Just $ Deposit account n
+--                                                 Nothing -> Nothing
+--                         _ -> Nothing
+--         _ -> Nothing
+-- parseCommand _ = Nothing
 
 ------------------------------------------------------------------------------
 -- Ex 4: Running commands. Implement the IO operation perform that takes a
@@ -180,7 +193,12 @@ parseCommand = todo
 --   "0"
 
 perform :: Connection -> Maybe Command -> IO T.Text
-perform = todo
+perform db (Just (Deposit account amount)) = do
+    deposit db account amount
+    return (T.pack "OK")
+perform db (Just (Balance account)) = do
+    balanceAmount <- balance db account
+    return (T.pack (show balanceAmount))
 
 ------------------------------------------------------------------------------
 -- Ex 5: Next up, let's set up a simple HTTP server. Implement a WAI
@@ -200,7 +218,9 @@ encodeResponse t = LB.fromStrict (encodeUtf8 t)
 -- Remember:
 -- type Application = Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 simpleServer :: Application
-simpleServer request respond = todo
+simpleServer request respond = respond (responseLBS status200 [] (encodeResponse (T.pack "BANK")))
+
+
 
 ------------------------------------------------------------------------------
 -- Ex 6: Now we finally have all the pieces we need to actually
@@ -228,8 +248,13 @@ simpleServer request respond = todo
 
 -- Remember:
 -- type Application = Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
+
 server :: Connection -> Application
-server db request respond = todo
+server db request respond = do
+    let pathSegments = pathInfo request
+    let command = parseCommand pathSegments
+    response <- perform db command
+    respond (responseLBS status200 [] (encodeResponse response))
 
 port :: Int
 port = 3421
@@ -241,6 +266,8 @@ main = do
   print port
   run port (server db)
 
+-- defaultMain :: IO ()
+-- defaultMain = main
 ------------------------------------------------------------------------------
 -- Ex 7: Add the possibility to withdraw funds to the API. Withdrawing
 -- should happen via a /withdraw/<account>/<amount> path, similarly to
